@@ -1,0 +1,3 @@
+[submodule "usernetes/src"]
+	path = usernetes/src
+	url = git@github.com:rootless-containers/usernetes
