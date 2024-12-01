@@ -1,11 +1,9 @@
-import socket
 import hashlib
+import os
+import socket
+
 import usernetes.utils as utils
 from usernetes.logger import logger
-
-here = os.path.dirname(__file__)
-root = os.path.dirname(here)
-src = os.path.join(root, "src")
 
 
 class ComposeConfig:
@@ -19,6 +17,7 @@ class ComposeConfig:
         node_service_name="node",
         container_engine_type="docker",
         compose="compose",
+        bypass=False,
     ):
         self._node_name = None
         self._node_subnet = None
@@ -27,7 +26,6 @@ class ComposeConfig:
         self.container_engine_type = container_engine_type or "docker"
         self.compose = compose or "compose"
         self.bypass = bypass
-        self.validate()
 
     @property
     def hostname(self):
@@ -37,17 +35,31 @@ class ComposeConfig:
         """
         Wrapper to check_preflight.
         """
+        # We assume the context is in the pwd
+        pwd = os.getcwd()
+        print(f"Checking for Usernetes in {pwd}")
+
         # Since this is complex, we just wrap the script
-        script = os.path.join(src, "Makefile.d", "check-preflight.sh")
+        script = os.path.join(pwd, "Makefile.d", "check-preflight.sh")
 
         # Ensure to export envars the script needs
         envars = {
             "CONTAINER_ENGINE": self.container_engine,
             "CONTAINER_ENGINE_TYPE": self.container_engine_type,
         }
-        result = self.run_command(["/bin/bash", script])
+
+        # preflight checks must pass
+        result = utils.run_command(["/bin/bash", script], envars=envars, stream=True)
         if result["return_code"] != 0:
-            logger.exit("Issue with preflight.")
+            raise ValueError(f"Issue with preflight return code {result['return_code']}")
+
+    def set_build_environment(self):
+        """
+        Export envars to the environment.
+        """
+        for k, v in self.envars.items():
+            os.environ[k] = v
+            os.putenv(k, v)
 
     @property
     def envars(self):
@@ -90,7 +102,7 @@ class ComposeConfig:
         # We add a newline to mimic the command line variant
         # and get the same digest - otherwise they are different
         # NODE_SUBNET_ID=$((16#$(echo "${HOSTNAME}" | sha256sum | head -c2)))
-        hasher.update((hostname + "\n").encode("utf-8"))
+        hasher.update((self.hostname + "\n").encode("utf-8"))
         digest = hasher.hexdigest()
 
         # Express the prefix in base 16 (e.g., $((16#<prefix>)))
@@ -133,7 +145,7 @@ class ComposeConfig:
         return self.node_subnet.replace(".0/24", ".100")
 
     @property
-    def host_ip():
+    def host_ip(self):
         """
         Gets the host IP address
         """

@@ -11,23 +11,16 @@ since I'm just adding core functionality, but this would be easy to do.
 
 🚧 Under Development 🚧
 
-*This library has not been tested yet, waiting for development environments!*
+## Orchestration
 
-## TODO
+The following setups are available:
 
-I'm planning to get our testing environment first, and then continue work on this.
-The main deployment question I have to run this in user space (under a batch job)
-is what is the best way to provision the usernetes code. Whatever strategy we choose,
-we want to pin a version (release) that we have tested. But our options are:
+- [flux-framework](scripts/flux): assumes a shared filesystem
+- [aws](scripts/aws): (with Flux, assuming no shared filesystem) is coming soon!
 
-- use a submodule provided here (what I'm implemented now for testing)
-- do a temporary / on the fly clone per job (takes time, but might be the best option)
-- cache something in user's home (only one clone, but could lead to bugs with cleanup, etc.)
+See the logic in [scripts/flux/start-usernetes.sh](scripts/flux/start-usernetes.sh) and [scripts/flux/stop-usernetes.sh](scripts/flux/stop-usernetes.sh) for logic to bring up and down a cluster. For Flux, these are intending to be run as perilog and epilog scripts, before and after a batch job, respectively, and given that a particular environment variable is set. If you add a set of scripts (and instructions) for your environment, please open a pull request here to add code and instructions!
 
-Likely I'll test our the current approach and then choose the second or third bullet. Note
-that what is missing from the code here is the distribution mechanism for the join-command.
-On an HPC cluster we have a shared filesystem (and we are good) but in cloud we need
-a combination of flux archive and flux exec.
+*This library has not been fully tested yet, waiting for development environments!*
 
 ## License
 
