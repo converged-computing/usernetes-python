@@ -9,8 +9,10 @@
 usernetes_template=/home/ubuntu/usernetes
 
 # We need to get the user id to run commands on their behalf
-user_uid=$(flux job info $FLUX_JOB_ID eventlog | grep submit | jq .context.userid)
-user_id=$(id -nu ${user_uid})
+# user_uid=$(flux job info $FLUX_JOB_ID eventlog | grep submit | jq .context.userid)
+# FLUX_JOB_USER_ID
+user_id=$(id -nu ${FLUX_JOB_USERID})
+
 echo "PATH is $PATH and FLUX_JOB_ID is $FLUX_JOB_ID, running as $(whoami) on behalf of ${user_id}"
 
 # The user is required to set an attribute to indicate wanting usernetes
