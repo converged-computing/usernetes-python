@@ -125,7 +125,7 @@ def run_command(cmd, stream=False, check_output=False, return_code=0, envars=Non
     If check_output is True, check against an expected return code.
     """
     envars = envars or {}
-    env = os.envion.copy()
+    env = os.environ.copy()
     env.update(envars)
     stdout = subprocess.PIPE if not stream else None
     output = subprocess.Popen(cmd, stderr=subprocess.STDOUT, stdout=stdout, env=env)
