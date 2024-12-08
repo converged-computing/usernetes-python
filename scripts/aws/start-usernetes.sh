@@ -3,7 +3,18 @@
 # Bring up user-space Kubernetes in a non-shared filesystem (AWS)
 # Variables to add:
 # 1. Runtime (e.g., docker vs. podman)
-# 2. Prolog currently stuck at "found join command" and then no output
+# 
+# run_usernetes.sh --nodes <nodes> 
+
+# Find mechanism to ensure just one cluster per top level user job
+# - 
+# - recursively add parent until get to top - "Do you have a usernetes clusterset a cluster id variable somewhere in 
+# Range of ids for usernetes for users, each cluster needs 4
+# flux batch script.sh
+# flux submit --<enable> <command>
+
+# Need to make sure kubelets created on nodes we expect
+# Need abstraction / plugin to deploy that doesn't run as root
 
 # Keep a copy of usernetes you control for users to use - you likely will want to change this
 usernetes_template=/home/ubuntu/usernetes
@@ -15,6 +26,10 @@ user_id=$(id -nu ${FLUX_JOB_USERID})
 
 echo "PATH is $PATH and FLUX_JOB_ID is $FLUX_JOB_ID, running as $(whoami) on behalf of ${user_id}"
 
+# TODO: when ports customizable, add that here.
+# -- if multiple instances on same nodes, need algorithm to partition range, and then reference 
+
+# go up to root (parent) and check for identifier
 # The user is required to set an attribute to indicate wanting usernetes
 run_usernetes=$(flux job info $FLUX_JOB_ID jobspec | jq -r .attributes.user.usernetes)
 if [ "${run_usernetes}" == "" ] || [ "${run_usernetes}" == "null" ]; then
