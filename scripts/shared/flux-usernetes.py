@@ -13,18 +13,36 @@ def get_parser():
         description="Usernetes-Flux Python",
         formatter_class=argparse.RawTextHelpFormatter,
     )
-
-    parser.add_argument(
-        "--develop",
-        help="Don't wrap main in a try except (allow error to come through)",
-        default=False,
-        action="store_true",
-    )
     subparsers = parser.add_subparsers(
         help="actions",
         title="actions",
         description="actions",
         dest="command",
+    )
+    ports = subparsers.add_parser(
+        "ports",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Retrieve a list of ports in the range 30,000–32,767",
+    )
+    ports.add_argument(
+        "-N",
+        "--number",
+        dest="number",
+        help="Number of ports to get",
+    )
+    ports.add_argument(
+        "--min",
+        dest="minimum_range",
+        type=int,
+        default=30000,
+        help="Minimum of range to use",
+    )
+    ports.add_argument(
+        "--max",
+        dest="maximum_range",
+        type=int,
+        default=32767,
+        help="Maximum of range to use",
     )
     broker = subparsers.add_parser(
         "broker",
@@ -69,6 +87,51 @@ def find_root(handle):
     return flux.Flux(handle.attr_get("local-uri"))
 
 
+def next_port(options):
+    for port in range(options):
+        yield port
+
+
+def derive_ports(handle, args):
+    """
+    Given a number, minimum range and max, derive a set of ports.
+
+    We then set the last port used on the lead (top level) broker so we don't use them again.
+    """
+    # kvs key for the last used port
+    port_key = "usernetes_last_used_port"
+
+    # We store metadata at the root
+    handle = find_root(handle)
+    minimum = args.minimum_value
+    maximum = args.maximum_value
+    last_used = get_kvs(handle, port_key)
+    if last_used is not None:
+        minimum = last_used
+    if minimum >= maximum:
+        raise ValueError(f"Minimum {minimum} cannot be >= maximum {maximum}")
+    options = range(minimum, maximum)
+    if len(options) < args.N:
+        raise ValueError(
+            f"Not enough ports left in instance to use. Need {args.N} and have {len(options)}"
+        )
+
+    # Custom function to get ports
+    def get_ports(minimum, maximum, N):
+        count = 0
+        for i in range(minimum, maximum):
+            yield i
+            count += 1
+            if count >= N:
+                return
+
+    for port in get_ports(minimum, maximum, args.N):
+        print(port)
+
+    # Set the kvs to be the next port that isn't used yet
+    set_kvs(handle, port_key, port + 1)
+
+
 def run_main():
     """
     this is the main entrypoint.
@@ -77,6 +140,14 @@ def run_main():
     args, extra = parser.parse_known_args()
     handle = flux.Flux()
 
+    if not args.command:
+        parser.print_help()
+        return
+
+    # We want to get one or more ports
+    if args.command == "ports":
+        return derive_ports(handle, args)
+
     # Are we asking for a parent?
     if args.command == "top-level":
         handle = find_root(handle)
@@ -84,22 +155,42 @@ def run_main():
     # The user wants to get (and print) an attribute
     # This will also ENOENT if does not exist
     if args.get_attribute is not None:
-        try:
-            print(handle.attr_get(args.get_attribute))
-        except FileNotFoundError:
-            pass
+        value = get_attribute(handle, args.get_attribute)
+        if value is not None:
+            print(value)
 
     # The user wants to get/set kvs
     if args.get_kvs:
-        # ENOENT if does not exist
-        try:
-            print(kvs.get(handle, args.get_kvs))
-        except FileNotFoundError:
-            pass
+        value = get_kvs(handle, args.get_kvs)
+        if value is not None:
+            print(value)
 
     if args.set_kvs:
         key, value = parse_pair(args.set_kvs)
         set_kvs(handle, key, value)
+
+
+def get_attribute(handle, name):
+    """
+    Wrapper to get an attribute that allows failure
+    """
+    try:
+        return handle.attr_get(args.get_attribute)
+    except FileNotFoundError:
+        pass
+
+
+def get_kvs(handle, key):
+    """
+    Wrapper to get_kvs that allows for failure
+
+    (when the key does not exist)
+    """
+    # ENOENT if does not exist
+    try:
+        return kvs.get(handle, args.get_kvs)
+    except FileNotFoundError:
+        pass
 
 
 def parse_pair(pair):

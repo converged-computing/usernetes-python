@@ -3,21 +3,18 @@
 # Bring up user-space Kubernetes in a non-shared filesystem (AWS)
 # Variables to add:
 # 1. Runtime (e.g., docker vs. podman)
-# 
-# run_usernetes.sh --nodes <nodes> 
-
-# Find mechanism to ensure just one cluster per top level user job
-# - 
-# - recursively add parent until get to top - "Do you have a usernetes clusterset a cluster id variable somewhere in 
-# Range of ids for usernetes for users, each cluster needs 4
-# flux batch script.sh
-# flux submit --<enable> <command>
 
 # Need to make sure kubelets created on nodes we expect
 # Need abstraction / plugin to deploy that doesn't run as root
 
+# Admin variables to set
 # Keep a copy of usernetes you control for users to use - you likely will want to change this
 usernetes_template=/home/ubuntu/usernetes
+usernetes_container="docker"
+
+# Set ports above 30K
+usernetes_custom_ports="no"
+
 
 # We need to get the user id to run commands on their behalf
 # user_uid=$(flux job info $FLUX_JOB_ID eventlog | grep submit | jq .context.userid)
@@ -38,7 +35,30 @@ if [ "${run_usernetes}" == "" ] || [ "${run_usernetes}" == "null" ]; then
 fi
 echo "User has indicated wanting to deploy User-space Kubernetes"
 
-# Get the kvs for the job so we can set metadata there
+# Check the parent to see if we have an identifier set
+usernetes_deployed=$(flux usernetes top-level --getkvs usernetes)
+if [ "${usernetes_deployed}" != "" ] || [ "${usernetes_deployed}" == "yes" ]; then
+    echo "Usernetes is already deployed somewhere in instance hierarchy."
+    exit 0
+fi 
+
+# Immediately set it on the top level instance if we get here - we are deploying!
+flux usernetes top-level --setkvs usernetes=yes
+
+# Always export the container runtime
+export CONTAINER_ENGINE=${usernetes_docker}
+
+# Change ports for different kubernetes services?
+if [ "${usernetes_custom_ports}" == "yes" ]; then
+    echo "Usernetes is requested to run with custom ports"
+    ports=($(flux usernetes ports --number 4))
+    export PORT_ETCD=${ports[0]}
+    export PORT_KUBELET=${ports[1]}
+    export PORT_FLANNEL=${ports[2]}
+    export PORT_KUBE_APISERVER=${ports[3]}
+fi 
+
+# Get the kvs for the job so we can set additional metadata there
 kvs_path=$(flux job id --to=kvs ${FLUX_JOB_ID})
 
 # Get the nodelist from the jobid
