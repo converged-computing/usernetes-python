@@ -58,7 +58,7 @@ if [ "${usernetes_custom_ports}" == "yes" ]; then
     export PORT_KUBELET=${ports[1]}
     export PORT_FLANNEL=${ports[2]}
     export PORT_KUBE_APISERVER=${ports[3]}
-fi 
+fi
 
 # Get the nodelist from the jobid
 # nodes=$(flux job info $FLUX_JOB_ID R | jq -r .execution.nodelist[0])

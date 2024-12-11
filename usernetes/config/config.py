@@ -60,6 +60,25 @@ class ComposeConfig:
         for k, v in self.envars.items():
             os.environ[k] = v
             os.putenv(k, v)
+        for k, v in self.custom_envars():
+            os.environ[k] = v
+            os.putenv(k, v)
+
+    def custom_envars(self):
+        """
+        Custom envars are variables we allow to go through.
+        """
+        names = [
+            "CONTAINER_ENGINE",
+            "PORT_ETCD",
+            "PORT_KUBELET",
+            "PORT_FLANNEL",
+            "PORT_KUBE_APISERVER",
+        ]
+        for name in names:
+            value = os.environ.get(name)
+            if value is not None:
+                yield name, value
 
     @property
     def envars(self):
