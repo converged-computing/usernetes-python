@@ -23,9 +23,6 @@ user_id=$(id -nu ${FLUX_JOB_USERID})
 
 echo "PATH is $PATH and FLUX_JOB_ID is $FLUX_JOB_ID, running as $(whoami) on behalf of ${user_id}"
 
-# TODO: when ports customizable, add that here.
-# -- if multiple instances on same nodes, need algorithm to partition range, and then reference 
-
 # go up to root (parent) and check for identifier
 # The user is required to set an attribute to indicate wanting usernetes
 run_usernetes=$(flux job info $FLUX_JOB_ID jobspec | jq -r .attributes.user.usernetes)

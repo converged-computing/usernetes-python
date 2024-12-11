@@ -28,6 +28,7 @@ def get_parser():
         "-N",
         "--number",
         dest="number",
+        type=int,
         help="Number of ports to get",
     )
     ports.add_argument(
@@ -103,17 +104,17 @@ def derive_ports(handle, args):
 
     # We store metadata at the root
     handle = find_root(handle)
-    minimum = args.minimum_value
-    maximum = args.maximum_value
+    minimum = args.minimum_range
+    maximum = args.maximum_range
     last_used = get_kvs(handle, port_key)
     if last_used is not None:
         minimum = last_used
     if minimum >= maximum:
         raise ValueError(f"Minimum {minimum} cannot be >= maximum {maximum}")
     options = range(minimum, maximum)
-    if len(options) < args.N:
+    if len(options) < args.number:
         raise ValueError(
-            f"Not enough ports left in instance to use. Need {args.N} and have {len(options)}"
+            f"Not enough ports left in instance to use. Need {args.number} and have {len(options)}"
         )
 
     # Custom function to get ports
@@ -125,7 +126,7 @@ def derive_ports(handle, args):
             if count >= N:
                 return
 
-    for port in get_ports(minimum, maximum, args.N):
+    for port in get_ports(minimum, maximum, args.number):
         print(port)
 
     # Set the kvs to be the next port that isn't used yet
@@ -188,7 +189,7 @@ def get_kvs(handle, key):
     """
     # ENOENT if does not exist
     try:
-        return kvs.get(handle, args.get_kvs)
+        return kvs.get(handle, key)
     except FileNotFoundError:
         pass
 
