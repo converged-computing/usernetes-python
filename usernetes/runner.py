@@ -226,7 +226,7 @@ class UsernetesRunner:
         """
         with utils.workdir(self.workdir):
             logger.debug(" ".join(command))
-            result = utils.run_command(command, stream=True, environ=self.environ)
+            result = utils.run_command(command, stream=True, environ=self.envars)
 
         # Assume we don't need to return the return code
         # can change if needed
