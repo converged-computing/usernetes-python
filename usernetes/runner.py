@@ -288,15 +288,19 @@ class UsernetesRunner:
         """
         self.run_command(["make", "debug"])
 
+    @property
+    def envars(self):
+        if not hasattr(self, self._envars):
+            # Set (and get) needed environment variables
+            self._envars = self.compose.set_build_environment()
+        return self._envars
+
     def up(self):
         """
         Run docker-compose up, always with detached.
         """
         with utils.workdir(self.workdir):
             self.compose.check()
-
-            # Set (and get) needed environment variables
-            self.envars = self.compose.set_build_environment()
 
             # $(COMPOSE) up --build -d
             self.run_command(["make", "up"])
