@@ -57,12 +57,16 @@ class ComposeConfig:
         """
         Export envars to the environment.
         """
+        values = {}
         for k, v in self.envars.items():
+            values[k] = v
             os.environ[k] = v
             os.putenv(k, v)
         for k, v in self.custom_envars():
+            values[k] = v
             os.environ[k] = v
             os.putenv(k, v)
+        return values
 
     def custom_envars(self):
         """
@@ -89,7 +93,7 @@ class ComposeConfig:
         NODE_SHELL := $(COMPOSE) exec \
 	    -e U7S_HOST_IP=$(U7S_HOST_IP) \
 	    -e U7S_NODE_NAME=$(U7S_NODE_NAME) \
-    	-e U7S_NODE_SUBNET=$(U7S_NODE_SUBNET) \
+      	-e U7S_NODE_SUBNET=$(U7S_NODE_SUBNET) \
 	    -e U7S_NODE_IP=$(U7S_NODE_IP) \
     	$(NODE_SERVICE_NAME)
         """

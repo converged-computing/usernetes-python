@@ -226,7 +226,7 @@ class UsernetesRunner:
         """
         with utils.workdir(self.workdir):
             logger.debug(" ".join(command))
-            result = utils.run_command(command, stream=True)
+            result = utils.run_command(command, stream=True, environ=self.environ)
 
         # Assume we don't need to return the return code
         # can change if needed
@@ -295,8 +295,8 @@ class UsernetesRunner:
         with utils.workdir(self.workdir):
             self.compose.check()
 
-            # Set needed environment variables
-            self.compose.set_build_environment()
+            # Set (and get) needed environment variables
+            self.envars = self.compose.set_build_environment()
 
             # $(COMPOSE) up --build -d
             self.run_command(["make", "up"])
