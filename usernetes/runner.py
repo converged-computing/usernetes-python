@@ -28,6 +28,7 @@ class UsernetesRunner:
 
         Validation of transformers is done by the registry
         """
+        self._envars = None
         # Set and validate the working directory
         self.compose_file = compose_file
         self.set_workdir(workdir)
@@ -290,7 +291,7 @@ class UsernetesRunner:
 
     @property
     def envars(self):
-        if not hasattr(self, self._envars):
+        if not self._envars:
             # Set (and get) needed environment variables
             self._envars = self.compose.set_build_environment()
         return self._envars
