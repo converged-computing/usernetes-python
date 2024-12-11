@@ -13,13 +13,13 @@ usernetes_template=/home/ubuntu/usernetes
 usernetes_container="docker"
 
 # Set ports above 30K
-usernetes_custom_ports="no"
-
+usernetes_custom_ports="yes"
 
 # We need to get the user id to run commands on their behalf
 # user_uid=$(flux job info $FLUX_JOB_ID eventlog | grep submit | jq .context.userid)
 # FLUX_JOB_USER_ID
 user_id=$(id -nu ${FLUX_JOB_USERID})
+broker_rank=$(flux getattr rank)
 
 echo "PATH is $PATH and FLUX_JOB_ID is $FLUX_JOB_ID, running as $(whoami) on behalf of ${user_id}"
 
@@ -33,11 +33,14 @@ fi
 echo "User has indicated wanting to deploy User-space Kubernetes"
 
 # Check the parent to see if we have an identifier set
-usernetes_deployed=$(flux usernetes top-level --getkvs usernetes)
-if [ "${usernetes_deployed}" != "" ] || [ "${usernetes_deployed}" == "yes" ]; then
-    echo "Usernetes is already deployed somewhere in instance hierarchy."
-    exit 0
-fi 
+# Only rank 0 can do this, otherwise we have a race.
+if [ "${broker_rank}" == "0" ]; then
+    usernetes_deployed=$(flux usernetes top-level --getkvs usernetes)
+    if [ "${usernetes_deployed}" != "" ] || [ "${usernetes_deployed}" == "yes" ]; then
+        echo "Usernetes is already deployed somewhere in instance hierarchy."
+        exit 0
+    fi
+fi
 
 # Immediately set it on the top level instance if we get here - we are deploying!
 flux usernetes top-level --setkvs usernetes=yes
@@ -135,7 +138,6 @@ else
     sudo -u ${user_id} usernetes start-worker --workdir $usernetes_root
     # When this command finishes, the worker is as ready as it can be.
     # Add this to the ready kvs directory.
-    broker_rank=$(flux getattr rank)
     flux kvs put ${kvs_path}.usernetes_ready.${broker_rank}=yes
 fi
 export KUBECONFIG=$usernetes_root/kubeconfig

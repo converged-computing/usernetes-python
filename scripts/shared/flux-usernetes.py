@@ -45,6 +45,12 @@ def get_parser():
         default=32767,
         help="Maximum of range to use",
     )
+    ports.add_argument(
+        "--reset",
+        default=False,
+        action="store_true",
+        help="Reset ports counter"
+    )
     broker = subparsers.add_parser(
         "broker",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -100,8 +106,11 @@ def derive_ports(handle, args):
     We then set the last port used on the lead (top level) broker so we don't use them again.
     """
     # kvs key for the last used port
-    port_key = "usernetes_last_used_port"
-
+    port_key = "usernetes_last_used_port"    
+    if args.reset:
+        set_kvs(handle, port_key, None)
+        return
+    
     # We store metadata at the root
     handle = find_root(handle)
     minimum = args.minimum_range
