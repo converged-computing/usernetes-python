@@ -46,9 +46,6 @@ if [ "${broker_rank}" == "0" ]; then
     flux kvs put ${kvs_path}.usernetes=yes
 fi
 
-# This needs to be found by all workers to cleanup
-flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
-
 # Always export the container runtime
 export CONTAINER_ENGINE=${usernetes_docker}
 
@@ -61,6 +58,7 @@ if [ "${usernetes_custom_ports}" == "yes" ]; then
     export PORT_KUBELET=${ports[1]}
     export PORT_FLANNEL=${ports[2]}
     export PORT_KUBE_APISERVER=${ports[3]}
+    custom_ports="PORT_ETCD=${PORT_ETCD} PORT_KUBELET=${PORT_KUBELET} PORT_FLANNEL=${PORT_FLANNEL} PORT_KUBE_APISERVER=${PORT_KUBE_APISERVER}"
 fi
 
 # Get the nodelist from the jobid
@@ -83,6 +81,9 @@ tmpdir=$(dirname $(mktemp -u))
 jobid=$(echo ${FLUX_JOB_ID} | tr '[:upper:]' '[:lower:]')
 usernetes_root=${tmpdir}/usernetes-${jobid}
 echo "Usernetes will be staged in ${usernetes_root}"
+
+# This needs to be found by all workers to cleanup
+flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
 
 # This is for the user
 sudo -u ${user_id} flux kvs put ${kvs_path}.user.usernetes_root=${usernetes_root}
@@ -113,7 +114,7 @@ fi
 if [ "${rank}" == "${lead_broker}" ]; then
     # The main difference between here and the shared filesystem is that we need to run in serial,
     # distribute the join-command, and wait for the correct number of instance names to show up
-    sudo -u ${user_id} usernetes --develop start-control-plane --workdir $usernetes_root --worker-count ${worker_count} --serial
+    sudo -u ${user_id} ${custom_ports} usernetes --develop start-control-plane --workdir $usernetes_root --worker-count ${worker_count} --serial
     flux archive create --name ${archive_name} --directory $usernetes_root join-command
     flux exec -x 0 flux archive extract --name ${archive_name} --directory $usernetes_root
 
@@ -133,7 +134,7 @@ if [ "${rank}" == "${lead_broker}" ]; then
     sudo -u ${user_id} make -C $usernetes_root sync-external-ip
 else
     # We don't need to do anything special here, it will still wait for the join command
-    sudo -u ${user_id} usernetes start-worker --workdir $usernetes_root
+    sudo -u ${user_id} ${custom_ports} usernetes start-worker --workdir $usernetes_root
     # When this command finishes, the worker is as ready as it can be.
     # Add this to the ready kvs directory.
     flux kvs put ${kvs_path}.usernetes_ready.${broker_rank}=yes
