@@ -23,6 +23,7 @@ kvs_path=$(flux job id --to=kvs ${FLUX_JOB_ID})
 usernetes_root=$(flux kvs get ${kvs_path}.usernetes_root)
 
 # QUESTION: do we need to cleanup the kvs directory for the jobid?
+flux usernetes top-level --clearkvs ${kvs_path}.usernetes || true
 
 # Bring the cluster down, and it doesn't matter what the node name is (same command for all)
 sudo -u ${user_id} usernetes --develop down --workdir $usernetes_root

@@ -43,14 +43,9 @@ if [ "${broker_rank}" == "0" ]; then
         echo "Usernetes is already deployed somewhere in instance hierarchy."
         exit 0
     fi
+    flux kvs put ${kvs_path}.usernetes=yes
+    flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
 fi
-
-# Set metadata
-flux kvs put ${kvs_path}.usernetes=yes
-flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
-
-# Immediately set it on the top level instance if we get here - we are deploying!
-flux usernetes top-level --setkvs usernetes=yes
 
 # Always export the container runtime
 export CONTAINER_ENGINE=${usernetes_docker}
