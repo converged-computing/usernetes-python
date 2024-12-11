@@ -44,13 +44,16 @@ if [ "${broker_rank}" == "0" ]; then
         exit 0
     fi
     flux kvs put ${kvs_path}.usernetes=yes
-    flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
 fi
+
+# This needs to be found by all workers to cleanup
+flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
 
 # Always export the container runtime
 export CONTAINER_ENGINE=${usernetes_docker}
 
 # Change ports for different kubernetes services?
+custom_ports=""
 if [ "${usernetes_custom_ports}" == "yes" ]; then
     echo "Usernetes is requested to run with custom ports"
     ports=($(flux usernetes ports --number 4))

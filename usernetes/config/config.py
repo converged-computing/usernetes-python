@@ -66,6 +66,7 @@ class ComposeConfig:
             values[k] = v
             os.environ[k] = v
             os.putenv(k, v)
+        print(values)
         return values
 
     def custom_envars(self):
