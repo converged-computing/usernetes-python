@@ -32,15 +32,22 @@ if [ "${run_usernetes}" == "" ] || [ "${run_usernetes}" == "null" ]; then
 fi
 echo "User has indicated wanting to deploy User-space Kubernetes"
 
+# Get the kvs for the job so we can set additional metadata there
+kvs_path=$(flux job id --to=kvs ${FLUX_JOB_ID})
+
 # Check the parent to see if we have an identifier set
 # Only rank 0 can do this, otherwise we have a race.
 if [ "${broker_rank}" == "0" ]; then
-    usernetes_deployed=$(flux usernetes top-level --getkvs usernetes)
+    usernetes_deployed=$(flux usernetes top-level --getkvs ${kvs_path}.usernetes)
     if [ "${usernetes_deployed}" != "" ] || [ "${usernetes_deployed}" == "yes" ]; then
         echo "Usernetes is already deployed somewhere in instance hierarchy."
         exit 0
     fi
 fi
+
+# Set metadata
+flux kvs put ${kvs_path}.usernetes=yes
+flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
 
 # Immediately set it on the top level instance if we get here - we are deploying!
 flux usernetes top-level --setkvs usernetes=yes
@@ -57,9 +64,6 @@ if [ "${usernetes_custom_ports}" == "yes" ]; then
     export PORT_FLANNEL=${ports[2]}
     export PORT_KUBE_APISERVER=${ports[3]}
 fi 
-
-# Get the kvs for the job so we can set additional metadata there
-kvs_path=$(flux job id --to=kvs ${FLUX_JOB_ID})
 
 # Get the nodelist from the jobid
 # nodes=$(flux job info $FLUX_JOB_ID R | jq -r .execution.nodelist[0])
@@ -81,10 +85,6 @@ tmpdir=$(dirname $(mktemp -u))
 jobid=$(echo ${FLUX_JOB_ID} | tr '[:upper:]' '[:lower:]')
 usernetes_root=${tmpdir}/usernetes-${jobid}
 echo "Usernetes will be staged in ${usernetes_root}"
-
-# I am not assuming this is shared across nodes
-flux kvs put ${kvs_path}.usernetes=yes
-flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
 
 # This is for the user
 sudo -u ${user_id} flux kvs put ${kvs_path}.user.usernetes_root=${usernetes_root}

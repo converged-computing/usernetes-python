@@ -73,6 +73,11 @@ def get_parser():
             help="Set an key value store attribute",
         )
         command.add_argument(
+            "--clearkvs",
+            dest="clear_kvs",
+            help="Clear an attribute",
+        )
+        command.add_argument(
             "--getkvs",
             dest="get_kvs",
             help="Get n key value store attribute",
@@ -170,12 +175,15 @@ def run_main():
             print(value)
 
     # The user wants to get/set kvs
-    if args.get_kvs:
+    if args.clear_kvs:
+        set_kvs(handle, port_key, None)
+
+    elif args.get_kvs:
         value = get_kvs(handle, args.get_kvs)
         if value is not None:
             print(value)
 
-    if args.set_kvs:
+    elif args.set_kvs:
         key, value = parse_pair(args.set_kvs)
         set_kvs(handle, key, value)
 
