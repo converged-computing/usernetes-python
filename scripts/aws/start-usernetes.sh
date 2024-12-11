@@ -3,18 +3,27 @@
 # Bring up user-space Kubernetes in a non-shared filesystem (AWS)
 # Variables to add:
 # 1. Runtime (e.g., docker vs. podman)
-# 2. Prolog currently stuck at "found join command" and then no output
 
+# Need to make sure kubelets created on nodes we expect
+# Need abstraction / plugin to deploy that doesn't run as root
+
+# Admin variables to set
 # Keep a copy of usernetes you control for users to use - you likely will want to change this
 usernetes_template=/home/ubuntu/usernetes
+usernetes_container="docker"
+
+# Set ports above 30K
+usernetes_custom_ports="yes"
 
 # We need to get the user id to run commands on their behalf
 # user_uid=$(flux job info $FLUX_JOB_ID eventlog | grep submit | jq .context.userid)
 # FLUX_JOB_USER_ID
 user_id=$(id -nu ${FLUX_JOB_USERID})
+broker_rank=$(flux getattr rank)
 
 echo "PATH is $PATH and FLUX_JOB_ID is $FLUX_JOB_ID, running as $(whoami) on behalf of ${user_id}"
 
+# go up to root (parent) and check for identifier
 # The user is required to set an attribute to indicate wanting usernetes
 run_usernetes=$(flux job info $FLUX_JOB_ID jobspec | jq -r .attributes.user.usernetes)
 if [ "${run_usernetes}" == "" ] || [ "${run_usernetes}" == "null" ]; then
@@ -23,8 +32,34 @@ if [ "${run_usernetes}" == "" ] || [ "${run_usernetes}" == "null" ]; then
 fi
 echo "User has indicated wanting to deploy User-space Kubernetes"
 
-# Get the kvs for the job so we can set metadata there
+# Get the kvs for the job so we can set additional metadata there
 kvs_path=$(flux job id --to=kvs ${FLUX_JOB_ID})
+
+# Check the parent to see if we have an identifier set
+# Only rank 0 can do this, otherwise we have a race.
+if [ "${broker_rank}" == "0" ]; then
+    usernetes_deployed=$(flux usernetes top-level --getkvs ${kvs_path}.usernetes)
+    if [ "${usernetes_deployed}" != "" ] || [ "${usernetes_deployed}" == "yes" ]; then
+        echo "Usernetes is already deployed somewhere in instance hierarchy."
+        exit 0
+    fi
+    flux kvs put ${kvs_path}.usernetes=yes
+fi
+
+# Always export the container runtime
+export CONTAINER_ENGINE=${usernetes_docker}
+
+# Change ports for different kubernetes services?
+custom_ports=""
+if [ "${usernetes_custom_ports}" == "yes" ]; then
+    echo "Usernetes is requested to run with custom ports"
+    ports=($(flux usernetes ports --number 4))
+    export PORT_ETCD=${ports[0]}
+    export PORT_KUBELET=${ports[1]}
+    export PORT_FLANNEL=${ports[2]}
+    export PORT_KUBE_APISERVER=${ports[3]}
+    custom_ports="PORT_ETCD=${PORT_ETCD} PORT_KUBELET=${PORT_KUBELET} PORT_FLANNEL=${PORT_FLANNEL} PORT_KUBE_APISERVER=${PORT_KUBE_APISERVER}"
+fi
 
 # Get the nodelist from the jobid
 # nodes=$(flux job info $FLUX_JOB_ID R | jq -r .execution.nodelist[0])
@@ -47,8 +82,7 @@ jobid=$(echo ${FLUX_JOB_ID} | tr '[:upper:]' '[:lower:]')
 usernetes_root=${tmpdir}/usernetes-${jobid}
 echo "Usernetes will be staged in ${usernetes_root}"
 
-# I am not assuming this is shared across nodes
-flux kvs put ${kvs_path}.usernetes=yes
+# This needs to be found by all workers to cleanup
 flux kvs put ${kvs_path}.usernetes_root=${usernetes_root}
 
 # This is for the user
@@ -80,7 +114,7 @@ fi
 if [ "${rank}" == "${lead_broker}" ]; then
     # The main difference between here and the shared filesystem is that we need to run in serial,
     # distribute the join-command, and wait for the correct number of instance names to show up
-    sudo -u ${user_id} usernetes --develop start-control-plane --workdir $usernetes_root --worker-count ${worker_count} --serial
+    sudo -u ${user_id} ${custom_ports} usernetes --develop start-control-plane --workdir $usernetes_root --worker-count ${worker_count} --serial
     flux archive create --name ${archive_name} --directory $usernetes_root join-command
     flux exec -x 0 flux archive extract --name ${archive_name} --directory $usernetes_root
 
@@ -100,10 +134,9 @@ if [ "${rank}" == "${lead_broker}" ]; then
     sudo -u ${user_id} make -C $usernetes_root sync-external-ip
 else
     # We don't need to do anything special here, it will still wait for the join command
-    sudo -u ${user_id} usernetes start-worker --workdir $usernetes_root
+    sudo -u ${user_id} ${custom_ports} usernetes start-worker --workdir $usernetes_root
     # When this command finishes, the worker is as ready as it can be.
     # Add this to the ready kvs directory.
-    broker_rank=$(flux getattr rank)
     flux kvs put ${kvs_path}.usernetes_ready.${broker_rank}=yes
 fi
 export KUBECONFIG=$usernetes_root/kubeconfig

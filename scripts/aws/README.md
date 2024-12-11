@@ -183,7 +183,7 @@ fi
 And then run!
 
 ```bash
-flux run -N2 --setattr=attributes.user.usernetes=yes batch.sh
+flux run -N2 --setattr=attributes.user.usernetes=yes /bin/bash batch.sh
 ```
 ```console
 flux-job: ƒ2QT1HSJy5 started                                                                                                                                                           00:00:50

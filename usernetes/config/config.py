@@ -57,9 +57,35 @@ class ComposeConfig:
         """
         Export envars to the environment.
         """
+        values = {}
         for k, v in self.envars.items():
+            values[k] = v
             os.environ[k] = v
             os.putenv(k, v)
+        for k, v in self.custom_envars().items():
+            values[k] = v
+            os.environ[k] = v
+            os.putenv(k, v)
+        print(values)
+        return values
+
+    def custom_envars(self):
+        """
+        Custom envars are variables we allow to go through.
+        """
+        names = [
+            "CONTAINER_ENGINE",
+            "PORT_ETCD",
+            "PORT_KUBELET",
+            "PORT_FLANNEL",
+            "PORT_KUBE_APISERVER",
+        ]
+        values = {}
+        for name in names:
+            value = os.environ.get(name)
+            if value is not None:
+                values[name] = value
+        return values
 
     @property
     def envars(self):
@@ -70,7 +96,7 @@ class ComposeConfig:
         NODE_SHELL := $(COMPOSE) exec \
 	    -e U7S_HOST_IP=$(U7S_HOST_IP) \
 	    -e U7S_NODE_NAME=$(U7S_NODE_NAME) \
-    	-e U7S_NODE_SUBNET=$(U7S_NODE_SUBNET) \
+      	-e U7S_NODE_SUBNET=$(U7S_NODE_SUBNET) \
 	    -e U7S_NODE_IP=$(U7S_NODE_IP) \
     	$(NODE_SERVICE_NAME)
         """

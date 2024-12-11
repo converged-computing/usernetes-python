@@ -28,6 +28,7 @@ class UsernetesRunner:
 
         Validation of transformers is done by the registry
         """
+        self._envars = None
         # Set and validate the working directory
         self.compose_file = compose_file
         self.set_workdir(workdir)
@@ -226,7 +227,7 @@ class UsernetesRunner:
         """
         with utils.workdir(self.workdir):
             logger.debug(" ".join(command))
-            result = utils.run_command(command, stream=True)
+            result = utils.run_command(command, stream=True, envars=self.envars)
 
         # Assume we don't need to return the return code
         # can change if needed
@@ -288,15 +289,19 @@ class UsernetesRunner:
         """
         self.run_command(["make", "debug"])
 
+    @property
+    def envars(self):
+        if not self._envars:
+            # Set (and get) needed environment variables
+            self._envars = self.compose.set_build_environment()
+        return self._envars
+
     def up(self):
         """
         Run docker-compose up, always with detached.
         """
         with utils.workdir(self.workdir):
             self.compose.check()
-
-            # Set needed environment variables
-            self.compose.set_build_environment()
 
             # $(COMPOSE) up --build -d
             self.run_command(["make", "up"])
