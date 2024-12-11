@@ -62,7 +62,7 @@ class ComposeConfig:
             values[k] = v
             os.environ[k] = v
             os.putenv(k, v)
-        for k, v in self.custom_envars():
+        for k, v in self.custom_envars().items():
             values[k] = v
             os.environ[k] = v
             os.putenv(k, v)
@@ -80,10 +80,12 @@ class ComposeConfig:
             "PORT_FLANNEL",
             "PORT_KUBE_APISERVER",
         ]
+        values = {}
         for name in names:
             value = os.environ.get(name)
             if value is not None:
-                yield name, value
+                values[name] = value
+        return values
 
     @property
     def envars(self):
